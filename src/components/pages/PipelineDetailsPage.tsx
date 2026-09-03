@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Activity, ArrowLeft, Clock, Calendar, GitBranch, CheckCircle, XCircle } from 'lucide-react';
+import { Activity, ArrowLeft, Clock, Calendar, GitBranch, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { BaseCrudService } from '@/integrations';
 import { Pipelines } from '@/entities';
 import Header from '@/components/Header';
@@ -9,10 +9,83 @@ import Footer from '@/components/Footer';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { format } from 'date-fns';
 
+interface PipelineStage {
+  name: string;
+  status: 'Success' | 'Failed' | 'Running' | 'Pending';
+  duration: number;
+  findings: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  details?: string;
+}
+
+const MOCK_STAGES: PipelineStage[] = [
+  {
+    name: 'Build',
+    status: 'Success',
+    duration: 45,
+    findings: { critical: 0, high: 0, medium: 0, low: 0 },
+    details: 'Successfully compiled source code and built artifacts'
+  },
+  {
+    name: 'Test',
+    status: 'Success',
+    duration: 120,
+    findings: { critical: 0, high: 0, medium: 2, low: 5 },
+    details: 'Unit tests passed: 1,245/1,250 (99.6% coverage)'
+  },
+  {
+    name: 'SAST',
+    status: 'Success',
+    duration: 180,
+    findings: { critical: 1, high: 3, medium: 8, low: 12 },
+    details: 'Static Application Security Testing completed'
+  },
+  {
+    name: 'Dependency Scan',
+    status: 'Success',
+    duration: 90,
+    findings: { critical: 0, high: 2, medium: 5, low: 8 },
+    details: 'Scanned 342 dependencies for known vulnerabilities'
+  },
+  {
+    name: 'Secret Scan',
+    status: 'Success',
+    duration: 60,
+    findings: { critical: 0, high: 0, medium: 0, low: 1 },
+    details: 'Checked for exposed credentials and secrets'
+  },
+  {
+    name: 'Container Scan',
+    status: 'Success',
+    duration: 150,
+    findings: { critical: 0, high: 1, medium: 4, low: 6 },
+    details: 'Scanned container image for vulnerabilities'
+  },
+  {
+    name: 'Security Gate',
+    status: 'Success',
+    duration: 30,
+    findings: { critical: 0, high: 0, medium: 0, low: 0 },
+    details: 'Security policies validated - all gates passed'
+  },
+  {
+    name: 'Deploy',
+    status: 'Success',
+    duration: 240,
+    findings: { critical: 0, high: 0, medium: 0, low: 0 },
+    details: 'Successfully deployed to production environment'
+  }
+];
+
 export default function PipelineDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const [pipeline, setPipeline] = useState<Pipelines | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedStage, setExpandedStage] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -56,6 +129,46 @@ export default function PipelineDetailsPage() {
       case 'Failed': return <XCircle className="w-8 h-8 text-primary-foreground" />;
       case 'Running': return <Clock className="w-8 h-8 text-primary-foreground" />;
       default: return <Activity className="w-8 h-8 text-primary-foreground" />;
+    }
+  };
+
+  const getStageBgColor = (status: string) => {
+    switch (status) {
+      case 'Success': return 'bg-green-50 border-green-200';
+      case 'Failed': return 'bg-red-50 border-red-200';
+      case 'Running': return 'bg-blue-50 border-blue-200';
+      case 'Pending': return 'bg-gray-50 border-gray-200';
+      default: return 'bg-gray-50 border-gray-200';
+    }
+  };
+
+  const getStageStatusColor = (status: string) => {
+    switch (status) {
+      case 'Success': return 'text-green-700';
+      case 'Failed': return 'text-red-700';
+      case 'Running': return 'text-blue-700';
+      case 'Pending': return 'text-gray-700';
+      default: return 'text-gray-700';
+    }
+  };
+
+  const getStageStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case 'Success': return 'bg-green-100 text-green-800';
+      case 'Failed': return 'bg-red-100 text-red-800';
+      case 'Running': return 'bg-blue-100 text-blue-800';
+      case 'Pending': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getSeverityColor = (severity: 'critical' | 'high' | 'medium' | 'low') => {
+    switch (severity) {
+      case 'critical': return 'text-red-700 bg-red-50';
+      case 'high': return 'text-orange-700 bg-orange-50';
+      case 'medium': return 'text-yellow-700 bg-yellow-50';
+      case 'low': return 'text-blue-700 bg-blue-50';
+      default: return 'text-gray-700 bg-gray-50';
     }
   };
 
@@ -203,6 +316,111 @@ export default function PipelineDetailsPage() {
                   <span className="font-paragraph text-base text-primary-foreground">Duration</span>
                   <span className="font-paragraph text-base text-primary-foreground">{pipeline.duration} seconds</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Pipeline Stages */}
+            <div className="mb-12">
+              <h2 className="font-heading text-3xl text-foreground mb-8">Pipeline Stages</h2>
+              
+              <div className="space-y-4">
+                {MOCK_STAGES.map((stage, index) => (
+                  <motion.div
+                    key={stage.name}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    className={`border-2 ${getStageBgColor(stage.status)} p-6 cursor-pointer hover:shadow-md transition-all`}
+                    onClick={() => setExpandedStage(expandedStage === stage.name ? null : stage.name)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="flex-shrink-0">
+                          {stage.status === 'Success' && <CheckCircle className={`w-6 h-6 ${getStageStatusColor(stage.status)}`} />}
+                          {stage.status === 'Failed' && <XCircle className={`w-6 h-6 ${getStageStatusColor(stage.status)}`} />}
+                          {stage.status === 'Running' && <Clock className={`w-6 h-6 ${getStageStatusColor(stage.status)}`} />}
+                          {stage.status === 'Pending' && <AlertCircle className={`w-6 h-6 ${getStageStatusColor(stage.status)}`} />}
+                        </div>
+                        
+                        <div className="flex-1">
+                          <h3 className="font-heading text-xl text-foreground mb-2">{stage.name}</h3>
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <span className={`font-paragraph text-sm px-3 py-1 rounded ${getStageStatusBadgeColor(stage.status)}`}>
+                              {stage.status}
+                            </span>
+                            <span className="font-paragraph text-sm text-secondary-foreground flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              {stage.duration}s
+                            </span>
+                            {(stage.findings.critical > 0 || stage.findings.high > 0 || stage.findings.medium > 0 || stage.findings.low > 0) && (
+                              <span className="font-paragraph text-sm text-secondary-foreground">
+                                {stage.findings.critical + stage.findings.high + stage.findings.medium + stage.findings.low} findings
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex-shrink-0 ml-4">
+                        {expandedStage === stage.name ? (
+                          <ChevronUp className="w-6 h-6 text-secondary-foreground" />
+                        ) : (
+                          <ChevronDown className="w-6 h-6 text-secondary-foreground" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expanded Details */}
+                    {expandedStage === stage.name && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="mt-6 pt-6 border-t border-current border-opacity-20"
+                      >
+                        {stage.details && (
+                          <div className="mb-6">
+                            <h4 className="font-heading text-lg text-foreground mb-2">Details</h4>
+                            <p className="font-paragraph text-base text-secondary-foreground">{stage.details}</p>
+                          </div>
+                        )}
+
+                        {(stage.findings.critical > 0 || stage.findings.high > 0 || stage.findings.medium > 0 || stage.findings.low > 0) && (
+                          <div>
+                            <h4 className="font-heading text-lg text-foreground mb-4">Findings by Severity</h4>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              {stage.findings.critical > 0 && (
+                                <div className={`p-4 rounded ${getSeverityColor('critical')}`}>
+                                  <p className="font-heading text-2xl font-bold">{stage.findings.critical}</p>
+                                  <p className="font-paragraph text-sm">Critical</p>
+                                </div>
+                              )}
+                              {stage.findings.high > 0 && (
+                                <div className={`p-4 rounded ${getSeverityColor('high')}`}>
+                                  <p className="font-heading text-2xl font-bold">{stage.findings.high}</p>
+                                  <p className="font-paragraph text-sm">High</p>
+                                </div>
+                              )}
+                              {stage.findings.medium > 0 && (
+                                <div className={`p-4 rounded ${getSeverityColor('medium')}`}>
+                                  <p className="font-heading text-2xl font-bold">{stage.findings.medium}</p>
+                                  <p className="font-paragraph text-sm">Medium</p>
+                                </div>
+                              )}
+                              {stage.findings.low > 0 && (
+                                <div className={`p-4 rounded ${getSeverityColor('low')}`}>
+                                  <p className="font-heading text-2xl font-bold">{stage.findings.low}</p>
+                                  <p className="font-paragraph text-sm">Low</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </motion.div>
+                ))}
               </div>
             </div>
 
