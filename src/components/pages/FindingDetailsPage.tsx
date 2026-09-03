@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertTriangle, ArrowLeft, Calendar, GitBranch, Shield, FileText, Code, Zap, Wrench, Lightbulb, Loader } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Calendar, GitBranch, Shield, FileText, Code, Zap, Wrench, Lightbulb } from 'lucide-react';
 import { BaseCrudService } from '@/integrations';
 import { SecurityFindings } from '@/entities';
 import Header from '@/components/Header';
@@ -19,151 +19,10 @@ interface ExtendedFinding extends SecurityFindings {
   aiExplanation?: string;
 }
 
-// Mock data matching FindingsPage
-const MOCK_FINDINGS_DATA: ExtendedFinding[] = [
-  {
-    _id: '1',
-    title: 'SQL Injection Vulnerability',
-    description: 'User input is not properly sanitized before being used in SQL queries',
-    severity: 'Critical',
-    remediationStatus: 'Open',
-    repositoryName: 'api-service',
-    detectionDate: new Date('2026-09-01'),
-    cweCveId: 'CWE-89',
-    filePath: 'src/database/queries.ts',
-    lineNumber: 145,
-    scanner: 'SonarQube',
-    evidence: 'Direct string concatenation in query: `SELECT * FROM users WHERE id = ${userId}`',
-    impact: 'Attackers could execute arbitrary SQL commands, potentially accessing or modifying sensitive data',
-    remediation: 'Use parameterized queries or prepared statements. Replace string concatenation with query parameters.',
-    aiExplanation: 'This SQL injection vulnerability occurs because user input is directly concatenated into SQL queries without proper escaping. An attacker could inject malicious SQL code to bypass authentication or extract sensitive data. Use parameterized queries with placeholders (?) and bind variables to prevent this.'
-  },
-  {
-    _id: '2',
-    title: 'Cross-Site Scripting (XSS)',
-    description: 'Unsanitized user input is rendered directly in the DOM',
-    severity: 'High',
-    remediationStatus: 'In Progress',
-    repositoryName: 'web-frontend',
-    detectionDate: new Date('2026-08-28'),
-    cweCveId: 'CWE-79',
-    filePath: 'src/components/UserProfile.tsx',
-    lineNumber: 89,
-    scanner: 'ESLint Security Plugin',
-    evidence: 'innerHTML assignment: `element.innerHTML = userInput`',
-    impact: 'Attackers could inject malicious scripts that execute in users\' browsers, stealing cookies or session tokens',
-    remediation: 'Use textContent instead of innerHTML, or sanitize HTML with a library like DOMPurify',
-    aiExplanation: 'XSS vulnerabilities allow attackers to inject malicious scripts into web pages. When user input is rendered without sanitization, attackers can steal session cookies, perform actions on behalf of users, or redirect them to malicious sites. Always use textContent for plain text or sanitize HTML with trusted libraries.'
-  },
-  {
-    _id: '3',
-    title: 'Hardcoded API Key',
-    description: 'API key is hardcoded in source code',
-    severity: 'Critical',
-    remediationStatus: 'Open',
-    repositoryName: 'payment-service',
-    detectionDate: new Date('2026-08-25'),
-    cweCveId: 'CWE-798',
-    filePath: 'src/config/stripe.ts',
-    lineNumber: 12,
-    scanner: 'GitGuardian',
-    evidence: 'const STRIPE_KEY = "sk_live_51234567890abcdef"',
-    impact: 'Exposed API keys could allow unauthorized access to payment systems and customer data',
-    remediation: 'Move API keys to environment variables or a secure secrets management system',
-    aiExplanation: 'Hardcoded secrets in source code are a critical security risk. Anyone with access to the repository can use these credentials to impersonate your application. Always use environment variables, secrets managers (AWS Secrets Manager, HashiCorp Vault), or configuration files that are excluded from version control.'
-  },
-  {
-    _id: '4',
-    title: 'Weak Password Hashing',
-    description: 'Passwords are hashed using MD5 instead of bcrypt',
-    severity: 'High',
-    remediationStatus: 'Open',
-    repositoryName: 'auth-service',
-    detectionDate: new Date('2026-08-20'),
-    cweCveId: 'CWE-327',
-    filePath: 'src/auth/password.ts',
-    lineNumber: 34,
-    scanner: 'SonarQube',
-    evidence: 'crypto.createHash("md5").update(password).digest("hex")',
-    impact: 'MD5 hashes can be cracked quickly with modern hardware, compromising user accounts',
-    remediation: 'Use bcrypt, scrypt, or Argon2 for password hashing with appropriate salt rounds',
-    aiExplanation: 'MD5 is cryptographically broken and should never be used for password hashing. Modern GPUs can crack MD5 hashes in seconds. Use bcrypt with a cost factor of 12+, scrypt, or Argon2 which are specifically designed for password hashing and include built-in salting.'
-  },
-  {
-    _id: '5',
-    title: 'Missing CSRF Token',
-    description: 'Form submissions lack CSRF token validation',
-    severity: 'Medium',
-    remediationStatus: 'Fixed',
-    repositoryName: 'web-frontend',
-    detectionDate: new Date('2026-08-15'),
-    cweCveId: 'CWE-352',
-    filePath: 'src/forms/checkout.tsx',
-    lineNumber: 67,
-    scanner: 'OWASP ZAP',
-    evidence: 'POST request without X-CSRF-Token header',
-    impact: 'Attackers could perform unauthorized actions on behalf of authenticated users',
-    remediation: 'Add CSRF token generation and validation to all state-changing requests',
-    aiExplanation: 'CSRF attacks trick users into performing unwanted actions on websites where they\'re authenticated. Without CSRF tokens, an attacker could craft a malicious page that makes requests to your site using the victim\'s session. Always include unique, unpredictable tokens in forms and validate them server-side.'
-  },
-  {
-    _id: '6',
-    title: 'Unvalidated Redirect',
-    description: 'User input controls redirect destination without validation',
-    severity: 'Medium',
-    remediationStatus: 'In Progress',
-    repositoryName: 'api-service',
-    detectionDate: new Date('2026-08-10'),
-    cweCveId: 'CWE-601',
-    filePath: 'src/middleware/redirect.ts',
-    lineNumber: 23,
-    scanner: 'Burp Suite',
-    evidence: 'res.redirect(req.query.url)',
-    impact: 'Users could be redirected to phishing sites or malware distribution pages',
-    remediation: 'Validate redirect URLs against a whitelist of allowed domains',
-    aiExplanation: 'Open redirects allow attackers to redirect users to malicious sites while appearing to come from your trusted domain. This is often used in phishing attacks. Always validate redirect URLs against a whitelist of allowed destinations or use relative URLs instead of user-controlled absolute URLs.'
-  },
-  {
-    _id: '7',
-    title: 'Insecure Deserialization',
-    description: 'Untrusted data is deserialized without validation',
-    severity: 'High',
-    remediationStatus: 'Open',
-    repositoryName: 'data-processor',
-    detectionDate: new Date('2026-08-05'),
-    cweCveId: 'CWE-502',
-    filePath: 'src/utils/serializer.ts',
-    lineNumber: 56,
-    scanner: 'SonarQube',
-    evidence: 'JSON.parse(untrustedInput)',
-    impact: 'Attackers could execute arbitrary code by crafting malicious serialized objects',
-    remediation: 'Use JSON.parse with a reviver function or validate data structure before deserialization',
-    aiExplanation: 'Deserializing untrusted data can lead to remote code execution if the deserialization process instantiates arbitrary classes. Always validate the structure and content of deserialized data. For JSON, use a reviver function to control which types are allowed.'
-  },
-  {
-    _id: '8',
-    title: 'Missing Security Headers',
-    description: 'HTTP security headers are not configured',
-    severity: 'Low',
-    remediationStatus: 'Open',
-    repositoryName: 'web-frontend',
-    detectionDate: new Date('2026-08-01'),
-    cweCveId: 'CWE-693',
-    filePath: 'src/server/middleware.ts',
-    lineNumber: 12,
-    scanner: 'OWASP ZAP',
-    evidence: 'Missing X-Content-Type-Options, X-Frame-Options, Content-Security-Policy headers',
-    impact: 'Increased vulnerability to clickjacking, MIME type sniffing, and XSS attacks',
-    remediation: 'Add security headers: X-Content-Type-Options: nosniff, X-Frame-Options: DENY, Content-Security-Policy',
-    aiExplanation: 'Security headers tell browsers how to handle your content and protect against common attacks. X-Content-Type-Options prevents MIME sniffing, X-Frame-Options prevents clickjacking, and Content-Security-Policy restricts where resources can be loaded from. Configure these headers in your server middleware.'
-  }
-];
-
 export default function FindingDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const [finding, setFinding] = useState<ExtendedFinding | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingAI, setIsLoadingAI] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -175,25 +34,13 @@ export default function FindingDetailsPage() {
     setIsLoading(true);
     try {
       const data = await BaseCrudService.getById<SecurityFindings>('securityfindings', id!);
-      const mockData = MOCK_FINDINGS_DATA.find(m => m._id === id);
-      const mergedFinding = { ...data, ...mockData } as ExtendedFinding;
-      setFinding(mergedFinding);
+      setFinding(data as ExtendedFinding);
     } catch (error) {
       console.error('Failed to load finding:', error);
-      // Fallback to mock data
-      const mockData = MOCK_FINDINGS_DATA.find(m => m._id === id);
-      setFinding(mockData || null);
+      setFinding(null);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const generateAIExplanation = () => {
-    setIsLoadingAI(true);
-    // Simulate AI response delay
-    setTimeout(() => {
-      setIsLoadingAI(false);
-    }, 1500);
   };
 
   const getSeverityColor = (severity?: string) => {
@@ -448,33 +295,22 @@ export default function FindingDetailsPage() {
               transition={{ duration: 0.4, delay: 0.8 }}
               className="border-2 border-primary p-8 mb-12"
             >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <Lightbulb className="w-6 h-6 text-primary" />
-                  <h2 className="font-heading text-2xl text-foreground">AI-Assisted Explanation</h2>
-                </div>
-                {!isLoadingAI && (
-                  <button
-                    onClick={generateAIExplanation}
-                    className="font-paragraph text-sm text-primary hover:text-deepbrown transition-colors"
-                  >
-                    Regenerate
-                  </button>
-                )}
+              <div className="flex items-center gap-3 mb-6">
+                <Lightbulb className="w-6 h-6 text-primary" />
+                <h2 className="font-heading text-2xl text-foreground">AI-Assisted Explanation</h2>
               </div>
               
-              {isLoadingAI ? (
-                <div className="flex items-center gap-3 py-8">
-                  <Loader className="w-5 h-5 text-primary animate-spin" />
-                  <span className="font-paragraph text-base text-secondary-foreground">Generating explanation...</span>
-                </div>
-              ) : (
-                <div className="bg-primary/5 p-6 border border-primary/20">
+              <div className="bg-primary/5 p-6 border border-primary/20">
+                {finding.description ? (
                   <p className="font-paragraph text-base text-secondary-foreground leading-relaxed">
-                    {finding.aiExplanation}
+                    {finding.description}
                   </p>
-                </div>
-              )}
+                ) : (
+                  <p className="font-paragraph text-base text-secondary-foreground/60 italic">
+                    AI analysis not configured. Configure an AI API key in settings to enable detailed explanations.
+                  </p>
+                )}
+              </div>
             </motion.div>
 
             {/* Quick Actions */}

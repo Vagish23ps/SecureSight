@@ -179,18 +179,9 @@ export default function FindingsPage() {
     setIsLoading(true);
     try {
       const result = await BaseCrudService.getAll<SecurityFindings>('securityfindings');
-      // Merge CMS data with mock extended data
-      const mergedFindings = result.items.map(item => {
-        const mockData = MOCK_FINDINGS_DATA.find(m => m._id === item._id);
-        return { ...item, ...mockData } as ExtendedFinding;
-      });
-      // If no CMS data, use mock data
-      const finalFindings = mergedFindings.length > 0 ? mergedFindings : MOCK_FINDINGS_DATA;
-      setFindings(finalFindings);
+      setFindings(result.items as ExtendedFinding[]);
     } catch (error) {
       console.error('Failed to load findings:', error);
-      // Fallback to mock data
-      setFindings(MOCK_FINDINGS_DATA);
     } finally {
       setIsLoading(false);
     }
