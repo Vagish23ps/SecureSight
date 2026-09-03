@@ -1,0 +1,19 @@
+---
+import { Head } from "@/components/Head";
+import AppRouter from "@/components/Router";
+import "@/styles/global.css";
+---
+
+<!DOCTYPE html>
+<html lang="en" class="w-full h-full">
+  <head>
+    <Head />
+    <title>SecureFlow — DevSecOps Security Platform</title>
+    <meta name="description" content="SecureFlow provides continuous source code security scanning, deterministic risk classification, and automated security gate enforcement." />
+  </head>
+  <body class="w-full h-full bg-secondary text-foreground">
+    <div id="root" class="w-full h-full">
+      <AppRouter client:only="react" />
+    </div>
+  </body>
+</html>
